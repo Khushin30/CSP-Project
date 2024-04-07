@@ -1,0 +1,97 @@
+---
+title: "CSP571 Project Data Prep and Transformations"
+author: "Khushin Patel"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+### Value Checking -Khush
+```{r}
+# lets see the first 10 of the data we're working with
+main_data <- read.csv("./Data Files/data_aal.csv")
+head(main_data, 10)
+```
+
+
+
+```{r}
+# lets record the change in the stocks value as net_change and create a new df with it
+net_change <- main_data$change
+processed_data <- data.frame(net_change)
+
+# lets also carry over the values from the Date, moon, slash, plus, star, two, and flare columns
+predictor_columns <- c("moon", "slash", "plus", "star", "two", "lunar", "solar", "flare")
+
+processed_data <- cbind(processed_data,main_data[, predictor_columns])
+processed_data <- na.omit(processed_data)
+processed_data
+```
+
+```{r}
+# Let's see the frequencies for each column
+frequency_tables <- lapply(processed_data[,predictor_columns], table)
+frequency_tables
+```
+### Balance the Dataset -Khush
+# The dataset is very unbalanced so I decided to ask GPT what wasy I could try to balance it. I chose to undersample the majority class which is when all of the predictor variables are 0. This does mean that we lose some data and hence the information it carries with it but we need to make this choice for both computational reasons and to balance the classes otherise some models might perform poorly.
+```{r}
+# GPT generated code
+
+majority_class <- subset(processed_data, rowSums(processed_data[predictor_columns]) == 0)  # Assuming majority class is where all columns are 0
+minority_class <- subset(processed_data, rowSums(processed_data[predictor_columns]) > 0)   # Assuming minority class is where at least one column is 1
+
+undersampled_majority <- majority_class[sample(nrow(majority_class), nrow(minority_class), replace = FALSE), ]
+
+# Combine undersampled majority class and minority class
+balanced_data <- rbind(undersampled_majority, minority_class)
+
+# lets see how the data is distributed now in our balanced dataset and shuffle it 
+balanced_data <- balanced_data[sample(nrow(balanced_data)), ]
+frequency_tables <- lapply(balanced_data[,predictor_columns], table)
+frequency_tables
+```
+# Still not the best distribution but still a little bit better than before. Now lets see the correlations in the dataset
+```{r}
+# lets see which variables are relevant to predicting the net change
+library(psych)
+
+columns_for_pairs <- c(predictor_columns, "net_change")
+
+# Create pairs plot
+pairs.panels(processed_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
+```
+# We see a very faint correlation between most of them except for moon phases which has a tad bit higher correlation but I still think this is because of the uneven distribution of classes for the remaining variables. Lets just combine them together into one column which will just indicate if there was any solar event present on this date or not.
+
+```{r}
+processed_data$has_solar_event = ifelse(rowSums(processed_data[predictor_columns]) > 0, 1, 0)
+
+# now lets see if this can show us any correlations
+
+pairs.panels(processed_data[c("has_solar_event", "net_change")], main = "Pairs Plot of Solar Event vs. net_change")
+```
+
+# Now this seems to have a good correlation but still not that much better than if we had just used column "two"
+
+# Let's see what weights a linear model might assign to these predictors and their p values
+```{r}
+linear_model <- lm(net_change ~ . - has_solar_event, data = processed_data)
+summary(linear_model)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
