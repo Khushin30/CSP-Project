@@ -34,6 +34,7 @@ head(processed_data, 10)
 
 ### Let's now see the distribution of the positive(1) class and the negative class in the predictors
 ```{r} 
+
 frequency_tables <- lapply(processed_data[,predictor_columns], table)
 frequency_tables
 ```
@@ -111,6 +112,52 @@ pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Balanced Co
 
 ```
 
+### Models: Decision Tree
+#### We will build a decision tree model that will use values of the predictor_columns to predict cat_change
+##### Lets first split both the balanced and imbalanced datasets into their training(80%) and testing(20%) indices. We will also only use the predictor columns for predictors in the tree
+```{r}
+train_indices <- sample(1:nrow(balanced_data), size = round(0.8 * nrow(balanced_data)))
+train_balanced_data <- balanced_data[train_indices, c(predictor_columns, "cat_change")]
+test_balanced_data <- balanced_data[-train_indices, c(predictor_columns, "cat_change")]
+
+train_indices <- sample(1:nrow(processed_data), size = round(.8 * nrow(processed_data)))
+train_processed_data <- processed_data[train_indices, c(predictor_columns, "cat_change")]
+test_processed_data <- processed_data[-train_indices, c(predictor_columns, "cat_change")]
+```
+
+##### Now lets build a decision tree on both datasets
+```{r}
+library(rpart)
+library(rpart.plot)
+
+tree_balanced <- rpart(cat_change ~ ., data = train_balanced_data, method = "class")
+rpart.plot(tree_balanced)
+
+tree_processed <- rpart(cat_change ~ ., data = train_processed_data, method = "class")
+rpart.plot(tree_processed)
+```
+
+```{r}
+predictions <- predict(tree_balanced, test_balanced_data, type = "class")
+
+# Calculate accuracy
+accuracy <- mean(predictions == test_balanced_data$cat_change)
+cat("Accuracy:", accuracy, "\n")
+
+# Calculate confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = test_balanced_data$cat_change)
+
+# Calculate precision, recall, and F1-score
+precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
+recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+f1_score <- 2 * precision * recall / (precision + recall)
+
+cat("Precision:", precision, "\n")
+cat("Recall:", recall, "\n")
+cat("F1-score:", f1_score, "\n")
+
+confusion_matrix
+```
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
