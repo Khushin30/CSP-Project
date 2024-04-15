@@ -70,6 +70,7 @@ columns_for_pairs <- c(imbalanced_predictors, "net_change")
 # Create pairs plot
 pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
 ```
+
 #### It seems like flare is the only one that has even a small correlation with net_change all the other ones are very faintly correlated. Maybe we will see a correlation if we combine them all into just one variable that signifies that there was some solar event occuring on that day. Lets first consider how it is distributed if we do all of the initial rows
 
 ```{r}
@@ -88,7 +89,7 @@ pairs.panels(processed_data[columns_for_pairs], main = "Pairs Plot of Columns vs
 balanced_data$has_event = ifelse(rowSums(balanced_data[, imbalanced_predictors]) > 0, 1, 0)
 head(balanced_data, 10)
 
-pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
+pairs.panels(balanced_data[columns_for_pairs], main = "Has_event of Columns vs. net_change")
 ```
 #### Similarly We don't see any significant correlation here
 ### Lets try to see if we can see a correlation if we use categorical change as the target in this using the imbalanced dataset
@@ -125,16 +126,18 @@ train_processed_data <- processed_data[train_indices, c(predictor_columns, "cat_
 test_processed_data <- processed_data[-train_indices, c(predictor_columns, "cat_change")]
 ```
 
+
+
 ##### Now lets build a decision tree on both datasets
 ```{r}
 library(rpart)
 library(rpart.plot)
 
 tree_balanced <- rpart(cat_change ~ ., data = train_balanced_data, method = "class")
-rpart.plot(tree_balanced)
+rpart.plot(tree_balanced, main = "Balanced Decision Tree for S&P500")
 
 tree_processed <- rpart(cat_change ~ ., data = train_processed_data, method = "class")
-rpart.plot(tree_processed)
+rpart.plot(tree_processed, main = "Regular Decision Tree for S&P500")
 ```
 
 ```{r}
@@ -146,6 +149,39 @@ cat("Accuracy:", accuracy, "\n")
 
 # Calculate confusion matrix
 confusion_matrix <- table(Predicted = predictions, Actual = test_balanced_data$cat_change)
+
+# Calculate precision, recall, and F1-score
+precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
+recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+f1_score <- 2 * precision * recall / (precision + recall)
+
+cat("Precision:", precision, "\n")
+cat("Recall:", recall, "\n")
+cat("F1-score:", f1_score, "\n")
+
+confusion_matrix
+```
+
+```{r}
+library(randomForest)
+library(randomForestExplainer)
+
+rf_model <- randomForest(cat_change ~ ., data = train_balanced_data, method = "class")
+importance <- importance(rf_model)
+importance
+# Plot feature importance
+varImpPlot(rf_model, main = "Balanced Random Forest LMT")
+```
+
+```{r}
+predictions <- round(predict(rf_model, processed_data, type = "class"))
+
+# Calculate accuracy
+accuracy <- mean(predictions == processed_data$cat_change)
+cat("Accuracy:", accuracy, "\n")
+
+# Calculate confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = processed_data$cat_change)
 
 # Calculate precision, recall, and F1-score
 precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
