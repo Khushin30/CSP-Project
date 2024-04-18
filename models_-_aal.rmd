@@ -1,0 +1,339 @@
+```{r}
+data <- read.csv("data_aal.csv")
+#data <- read.csv("data_ba.csv")
+#data <- read.csv("data_lmt.csv")
+#data <- read.csv("data_sp.csv")
+##data <- read.csv("data_united.csv")
+data <- read.csv("data_delta.csv")
+head(data)
+```
+
+balanced corplot is much better, and lm indicators are also much better, but no other predictors are relavent other that slash
+```{r}
+imbalanced_predictors = c("moon", "slash", "plus", "star", "two", "lunar", "solar", "flare")
+
+# GPT generated code
+majority_class <- subset(data, rowSums(data[imbalanced_predictors]) == 0)
+minority_class <- subset(data, rowSums(data[imbalanced_predictors]) > 0)
+
+undersampled_majority <- majority_class[sample(nrow(majority_class), nrow(minority_class), replace = FALSE), ]
+
+# Combine undersampled majority class and minority class
+balanced_data <- rbind(undersampled_majority, minority_class)
+head(balanced_data, 10)
+# lets see how the data is distributed now in our balanced dataset and shuffle it 
+bal_data <- balanced_data[sample(nrow(balanced_data)), ] # change to data if you want to use
+
+```
+
+
+```{r}
+summary(data)
+```
+
+
+
+```{r}
+plot_histograms_separate <- function(data, columns) {
+  for (col in columns) {
+    hist(data[[col]], main = col, xlab = col)
+  }
+}
+
+selected_columns <- c("Volume" ,"change_cat", "change", "moon", "slash", "plus", "star", "two", "lunar", "solar", "flare")
+
+plot_histograms_separate(data, selected_columns)
+
+```
+
+```{r}
+n_rows <- nrow(data)
+
+train_proportion <- 0.8
+
+n_train <- round(train_proportion * n_rows)
+
+train_indices <- sample(1:n_rows, n_train, replace = FALSE)
+
+train_data <- data[train_indices, ]
+
+test_data <- data[-train_indices, ]
+```
+
+
+```{r}
+model <- lm(change ~ moon + slash + plus + star + two + flare+lunar+solar, data = train_data)
+
+cat("r2",summary(model)$r.squared)
+summary(model)
+```
+
+
+
+```{r}
+plot(model$residuals, main = "Residuals Plot", xlab = "Index", ylab = "Residuals")
+```
+
+As we see there is no non-linear relationship in the residuals, so running a non-linear model would not be beneficial.
+
+```{r}
+
+plot(fitted(model), residuals(model), main = "fitted v residuals", xlab = "fitted", ylab = "residuals")
+
+```
+
+```{r}
+predictions <- predict(model, newdata = test_data)
+
+# Calculate Mean Squared Error (MSE)
+mse <- mean((test_data$change - predictions)^2)
+mse
+```
+
+
+Trying the model with just the slash column since it is only valid predictor
+```{r}
+model <- lm(change ~ slash, data = train_data)
+
+cat("r2",summary(model)$r.squared)
+# Print the summary of the model
+summary(model)
+
+```
+
+
+```{r}
+predictions <- predict(model, newdata = test_data)
+
+mse <- mean((test_data$change - predictions)^2)
+mse
+```
+We have very similar mse to the one with all of the predictors.
+
+
+
+# tring to remove outliers, shows that outliers are the slash predictors
+```{r}
+df_filtered <- data[!(abs(data$change) > 1.25), ]
+```
+
+```{r}
+n_rows <- nrow(df_filtered)
+
+train_proportion <- 0.8
+
+n_train <- round(train_proportion * n_rows)
+
+train_indices <- sample(1:n_rows, n_train, replace = FALSE)
+
+train_data <- df_filtered[train_indices, ]
+
+test_data <- df_filtered[-train_indices, ]
+```
+
+
+```{r}
+model <- lm(change ~ moon + slash + plus + star + two + flare+lunar+solar, data = train_data)
+
+# Print the summary of the model
+summary(model)
+```
+
+```{r}
+predictions <- predict(model, newdata = test_data)
+
+# Calculate Mean Squared Error (MSE)
+mse <- mean((test_data$change - predictions)^2)
+mse
+```
+
+```{r}
+plot(model$residuals, main = "Residuals Plot", xlab = "Index", ylab = "Residuals")
+```
+Removing the outliers from the data made the residuals spread even better, but did not help with model
+
+```{r}
+model <- glm(change_cat ~ moon + slash + plus + star + two + flare+lunar+solar, data = train_data, family = binomial)
+
+# Summary of the model
+summary(model)
+```
+
+
+```{r}
+predictions <- predict(model, newdata = test_data, type = "response")
+
+predicted_labels <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(1, 0))
+
+actual_labels <- factor(test_data$change_cat, levels = c(1, 0))
+
+conf_matrix <- confusionMatrix(predicted_labels, actual_labels)
+print(conf_matrix)
+```
+
+```{r}
+filtered_df <- data[data$change > 1.25, ]
+length(filtered_df)
+# Plot the filtered dataframe
+plot(filtered_df$X, filtered_df$change, type = "o", col = "blue", 
+     xlab = "x", ylab = "y", main = paste("Rows with value", 1))
+```
+
+```{r}
+library(corrplot)
+data_excluded <- filtered_df[, !(names(data) %in% "Date")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "High")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "Low")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "X")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "cat_change")]
+
+correlation_matrix <- cor(data_excluded)
+corrplot(correlation_matrix)
+```
+
+is slash causing the outliers??
+```{r}
+data$outlier <- ifelse(data$change > 1, 1, 0)
+```
+
+```{r}
+n_rows <- nrow(data)
+
+train_proportion <- 0.8
+
+n_train <- round(train_proportion * n_rows)
+
+train_indices <- sample(1:n_rows, n_train, replace = FALSE)
+
+train_data <- data[train_indices, ]
+
+test_data <- data[-train_indices, ]
+```
+
+```{r}
+model <- lm(outlier ~ moon + slash + plus + star + two + flare+lunar+solar, data = train_data)
+
+# Print the summary of the model
+summary(model)
+```
+
+```{r}
+data$cat_change <- ifelse(data$change_cat == 1, "1", "0")
+```
+
+```{r}
+n_rows <- nrow(data)
+
+train_proportion <- 0.8
+
+n_train <- round(train_proportion * n_rows)
+
+train_indices <- sample(1:n_rows, n_train, replace = FALSE)
+
+train_data <- data[train_indices, ]
+
+test_data <- data[-train_indices, ]
+```
+
+
+```{r}
+model <- glm(change_cat ~ moon + slash + plus + star + two + flare+lunar+solar, data = train_data, family = binomial)
+
+# Print the summary of the model
+print(summary(model))
+```
+
+```{r}
+predictions <- predict(model, newdata = test_data, type = "response")
+
+predicted_labels <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(1, 0))
+
+actual_labels <- factor(test_data$outlier, levels = c(1, 0))
+
+conf_matrix <- confusionMatrix(predicted_labels, actual_labels)
+print(conf_matrix)
+```
+
+
+
+
+Random forest model
+```{r}
+n_rows <- nrow(data)
+
+train_proportion <- 0.8
+
+n_train <- round(train_proportion * n_rows)
+
+train_indices <- sample(1:n_rows, n_train, replace = FALSE)
+
+train_data <- data[train_indices, ]
+
+test_data <- data[-train_indices, ]
+```
+
+```{r}
+train_data
+```
+
+```{r}
+# Load the randomForest package
+library(randomForest)
+
+# Function to shuffle the data in a custom way
+custom_shuffle <- function(data) {
+  imbalanced_predictors = c("moon", "slash", "plus", "star", "two", "lunar", "solar", "flare")
+
+  # GPT generated code
+  majority_class <- subset(data, rowSums(data[imbalanced_predictors]) == 0)
+  minority_class <- subset(data, rowSums(data[imbalanced_predictors]) > 0)
+  
+  undersampled_majority <- majority_class[sample(nrow(majority_class), nrow(minority_class), replace = FALSE), ]
+  
+  # Combine undersampled majority class and minority class
+  balanced_data <- rbind(undersampled_majority, minority_class)
+  head(balanced_data, 10)
+  # lets see how the data is distributed now in our balanced dataset and shuffle it 
+  bal_data <- balanced_data[sample(nrow(balanced_data)), ] # change to data if you want to use
+  return(bal_data)
+}
+
+# Train a Random Forest model with custom shuffling
+custom_rf_model <- randomForest(change_cat ~ moon + slash + plus + star + two + flare+lunar+solar,
+                                data = train_data, 
+                                sampsize = nrow(train_data), 
+                                strata = custom_shuffle(train_data))
+
+# Make predictions on the entire dataset
+predictions <- predict(custom_rf_model, newdata = test_data)
+
+# Evaluate the model
+accuracy <- mean(predictions == test_data$change_cat)
+print(paste("Accuracy:", accuracy))
+
+```
+
+```{r}
+nrow(train_data)
+```
+
+```{r}
+predictions <- predict(custom_rf_model, newdata = test_data, type = "response")
+
+predicted_labels <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(1, 0))
+
+actual_labels <- factor(test_data$outlier, levels = c(1, 0))
+
+conf_matrix <- confusionMatrix(predicted_labels, actual_labels)
+print(conf_matrix)
+```
+
+
+
+
+
+MAKE GRAPH PLOTTING CHANGE, AND LINE WHERE SLASH
+
+
+penumbral lunar eclipse is slash
+Only slash shows up, and only for united and aal, the 2 airline companies, even shows up for delta

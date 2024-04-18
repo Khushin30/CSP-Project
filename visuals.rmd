@@ -1,0 +1,105 @@
+```{r}
+#data <- read.csv("data_all.csv")
+data <- read.csv("data_aal.csv")
+#data <- read.csv("data_ba.csv")
+#data <- read.csv("data_lmt.csv")
+#data <- read.csv("data_sp.csv")
+#data <- read.csv("data_united.csv")
+head(data)
+```
+
+```{r}
+imbalanced_predictors = c("moon", "slash", "plus", "star", "two", "lunar", "solar", "flare")
+
+# GPT generated code
+majority_class <- subset(data, rowSums(data[imbalanced_predictors]) == 0)
+minority_class <- subset(data, rowSums(data[imbalanced_predictors]) > 0)
+
+undersampled_majority <- majority_class[sample(nrow(majority_class), nrow(minority_class), replace = FALSE), ]
+
+# Combine undersampled majority class and minority class
+balanced_data <- rbind(undersampled_majority, minority_class)
+head(balanced_data, 10)
+# lets see how the data is distributed now in our balanced dataset and shuffle it 
+b_data <- balanced_data[sample(nrow(balanced_data)), ]
+
+```
+
+
+
+```{r}
+library(corrplot)
+data_excluded <- data[, !(names(data) %in% "Date")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "High")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "Low")]
+data_excluded <- data_excluded[, !(names(data_excluded) %in% "X")]
+
+correlation_matrix <- cor(data_excluded)
+corrplot(correlation_matrix)
+```
+
+
+```{r}
+data$cat_change <- ifelse(data$change_cat == 1, "1", "0")
+```
+
+```{r}
+
+library(ggplot2)
+ggplot(data, aes(x = cat_change, y = change, fill = cat_change)) +
+  geom_boxplot() +
+  labs(title = "Outlier")
+
+
+```
+
+# slash v change
+```{r}
+data$cat_slash <- ifelse(data$slash == 1, "1", "0")
+```
+
+```{r}
+
+library(ggplot2)
+ggplot(data, aes(x = cat_slash, y = change, fill = cat_slash)) +
+  geom_boxplot() +
+  labs(title = "Boxplots Sepal.Length")
+
+
+```
+
+```{r}
+df_filtered <- data[!(abs(data$change) > 1.25), ]
+
+# Print the filtered dataframe     & data$slash == 0
+#print(df_filtered)
+```
+
+```{r}
+
+ggplot(df_filtered, aes(x = cat_change, y = change, fill = cat_change)) +
+  geom_boxplot() +
+  labs(title = "No Outlier")
+
+
+```
+
+
+```{r}
+# First, install and load the ggplot2 package
+# install.packages("ggplot2")
+library(ggplot2)
+
+
+# Now, let's create a basic scatter plot
+ggplot(data, aes(x = data$X, y = data$change)) +
+  geom_point() +
+  geom_vline(xintercept = which(data$moon == 1), linetype = "dashed", color = "red") +
+  labs(title = "Scatter Plot", x = "X-axis", y = "Change")
+
+```
+
+
+
+
+

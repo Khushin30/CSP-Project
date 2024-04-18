@@ -1,0 +1,220 @@
+```{r}
+library("sqldf")
+
+setwd("D:/2024_Data/Project")
+
+
+flares <- read.csv("flares_and_instruments_v2.csv")
+#stocks <- read.csv("all_stocks_5yr.csv")
+stocks <- read.csv("delta.csv")
+moons <- read.csv("full_moons.csv")
+l_eclipse <- read.csv("lunar.csv")
+s_eclipse <- read.csv("solar.csv")
+
+```
+
+```{r}
+flares
+```
+
+```{r}
+stocks
+```
+
+
+```{r}
+stocks
+```
+
+```{r}
+moons
+```
+
+```{r}
+l_eclipse
+```
+
+```{r}
+s_eclipse
+```
+
+# Remove null values
+```{r}
+flares <- na.omit(flares)
+stocks <- na.omit(stocks)
+moons <- moons[complete.cases(moons$Date), ]
+
+```
+
+# removing all bc dates and only keeping dates 2000-2025
+```{r}
+# did manually much easier to select and delete from csv since in order
+
+```
+
+
+# Add new feature to stocks which is the daily change
+```{r}
+#stocks$change <- stocks$open - stocks$close
+
+
+stocks$Close.Last <- substr(stocks$Close.Last, 2, nchar(stocks$Close.Last))
+stocks$Close.Last <- as.numeric(stocks$Close.Last)
+stocks$Open <- substr(stocks$Open, 2, nchar(stocks$Open))
+stocks$Open <- as.numeric(stocks$Open)
+stocks$change <- stocks$Open - stocks$Close.Last
+
+stocks$change_cat <- ifelse(stocks$change >= 0, 1, 0)
+
+stocks
+```
+
+# Encoding moons.flag
+```{r}
+unique(moons$Flag)
+```
+
+```{r}
+
+moons$Flag[moons$Flag == ""] <- "0"
+
+```
+
+```{r}
+mapping <- c("0" = 0,"[/]" = 1, "[+]" = 2, "[*]" = 3, "[**]" = 4, "[/][+]" = 5, "[**][+]" = 6, "[*][+]" = 7)
+
+moons$Flag <- mapping[as.character(moons$Flag)]
+
+print(moons)
+```
+
+# Standardize Dates
+```{r}
+cat("flares",flares[1,"JJJ.Start"])
+print(" ")
+#cat("stocks",stocks[1,"date"])
+cat("stocks",stocks[1,"Date"])
+print(" ")
+cat("moons",moons[1,"Date"])
+print(" ")
+cat("lunar",l_eclipse[1,"Calendar.Date"])
+print(" ")
+cat("solar",s_eclipse[1,"Calendar.Date"])
+```
+
+```{r}
+# install.packages("lubridate")
+library(lubridate)
+```
+
+```{r}
+flares$Date <- ymd_hms(flares$JJJ.Start)
+#stocks$Date <- ymd(stocks$date)
+stocks$Date <- mdy(stocks$Date)
+moons$Date <- dmy(moons$Date)
+l_eclipse$Date <- ymd(l_eclipse$Calendar.Date)
+s_eclipse$Date <- ymd(s_eclipse$Calendar.Date)
+```
+
+```{r}
+cat("flares",flares$Date[1])
+print(" ")
+cat("stocks",stocks$Date[1])
+print(" ")
+cat("moons",moons$Date[1])
+print(" ")
+cat("lunar",l_eclipse[1,"Date"])
+print(" ")
+cat("solar",s_eclipse[1,"Calendar.Date"])
+```
+
+```{r}
+flares$Date[1]
+```
+
+```{r}
+stocks$Date[1]
+```
+
+```{r}
+moons$Date[1]
+```
+
+```{r}
+l_eclipse$Date[1]
+```
+
+```{r}
+s_eclipse$Date[1]
+```
+
+# data aggragration
+```{r}
+date_list <- moons$Date
+
+stocks$moon <- ifelse(stocks$Date %in% date_list, 1, 0)
+
+stocks
+```
+
+```{r}
+slash_dates <- moons$Date[moons$Flag %in% c(1,5)] #[/]
+plus_dates <- moons$Date[moons$Flag %in% c(2,5,6,7)] # [+]
+star_dates <- moons$Date[moons$Flag %in% c(3,7)] #[*]
+two_star_dates <- moons$Date[moons$Flag %in% c(4,6)] #[**]
+```
+
+```{r}
+stocks$slash <- ifelse(stocks$Date %in% slash_dates, 1, 0)
+stocks$plus <- ifelse(stocks$Date %in% plus_dates, 1, 0)
+stocks$star <- ifelse(stocks$Date %in% star_dates, 1, 0)
+stocks$two <- ifelse(stocks$Date %in% two_star_dates, 1, 0)
+
+stocks
+```
+
+
+```{r}
+l_dates <- l_eclipse$Date
+s_dates <- s_eclipse$Date
+
+stocks$lunar <- ifelse(stocks$Date %in% l_dates, 1, 0)
+stocks$solar <- ifelse(stocks$Date %in% s_dates, 1, 0)
+
+stocks
+```
+
+```{r}
+table(stocks$moon)
+table(stocks$slash)
+table(stocks$plus)
+table(stocks$star)
+table(stocks$two)
+table(stocks$lunar)
+table(stocks$solar)
+```
+
+```{r}
+date_list <- flares$Date
+
+stocks$flare <- ifelse(stocks$Date %in% date_list, 1, 0)
+
+stocks
+```
+
+```{r}
+table(stocks$flare)
+```
+
+```{r}
+write.csv(stocks, "data_delta.csv")
+```
+
+# Feature Data Summary
+
+
+# Correlation Matrix
+
+
+
+
