@@ -19,7 +19,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 ### Value Checking -Khush
 ```{r}
 # lets see the first 10 of the data we're working with
-main_data = read.csv("./Data Files/data_ba.csv")
+main_data = read.csv("./Data Files/data_sp.csv")
 head(main_data, 10)
 ```
 
@@ -68,9 +68,9 @@ frequency_tables
 library(psych)
 columns_for_pairs <- c(imbalanced_predictors, "net_change")
 # Create pairs plot
-pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Balanced Columns vs. net_change")
+pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
 ```
-#### It seems like slash and lunar are the only one that have even a small correlation with net_change all the other ones are very faintly correlated. Maybe we will see a correlation if we combine them all into just one variable that signifies that there was some solar event occuring on that day. Lets first consider how it is distributed if we do all of the initial rows
+#### It seems like flare is the only one that has even a small correlation with net_change all the other ones are very faintly correlated. Maybe we will see a correlation if we combine them all into just one variable that signifies that there was some solar event occuring on that day. Lets first consider how it is distributed if we do all of the initial rows
 
 ```{r}
 processed_data$has_event = ifelse(rowSums(processed_data[, imbalanced_predictors]) > 0, 1, 0)
@@ -81,17 +81,17 @@ head(processed_data, 10)
 ```{r}
 columns_for_pairs <- c("has_event", "net_change")
 # Create pairs plot
-pairs.panels(processed_data[columns_for_pairs], main = "Pairs Plot of has_event vs. net_change")
+pairs.panels(processed_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
 ```
 #### still doesn't seem good lets try the same thing with the balanced dataset
 ```{r}
 balanced_data$has_event = ifelse(rowSums(balanced_data[, imbalanced_predictors]) > 0, 1, 0)
 head(balanced_data, 10)
 
-pairs.panels(balanced_data[columns_for_pairs], main = "Has_event of Balanced has_event vs. net_change")
+pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Columns vs. net_change")
 ```
 #### Similarly We don't see any significant correlation here
-### Lets try to see if we can see a correlation we use categorical change as the target in this using the imbalanced dataset
+### Lets try to see if we can see a correlation if we use categorical change as the target in this using the imbalanced dataset
 
 ```{r}
 columns_for_pairs <- c(imbalanced_predictors, "has_event", "cat_change")
@@ -99,7 +99,7 @@ columns_for_pairs <- c(imbalanced_predictors, "has_event", "cat_change")
 pairs.panels(processed_data[columns_for_pairs], main = "Pairs Plot of Columns vs. Cat_change")
 ```
 
-#### still seems like barely any correlation
+#### none of them seem to show any correlation here
 #### now lets see if similary we can get something out of the balanced dataset
 
 ```{r}
@@ -107,9 +107,10 @@ predictor_columns <- c("moon", "slash",  "plus", "star", "two", "lunar", "solar"
 
 columns_for_pairs <- c(imbalanced_predictors, "has_event", "cat_change")
 # Create pairs plot
-pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Balanced Columns vs. Cat_change")
+pairs.panels(balanced_data[columns_for_pairs], main = "Pairs Plot of Balanced Columns  vs. Cat_change")
 
 ```
+##### moon, star and has_event seem to showing a small correlation when the dataset is balanced and is compared to cat_change
 
 ### Models: Decision Tree
 #### We will build a decision tree model that will use values of the predictor_columns to predict cat_change
@@ -130,10 +131,10 @@ library(rpart)
 library(rpart.plot)
 
 tree_balanced <- rpart(cat_change ~ ., data = train_balanced_data, method = "class")
-rpart.plot(tree_balanced, main = "Balanced Decision Tree for BA")
+rpart.plot(tree_balanced)
 
 tree_processed <- rpart(cat_change ~ ., data = train_processed_data, method = "class")
-rpart.plot(tree_processed, main = "Regular Decision Tree for BA")
+rpart.plot(tree_processed)
 ```
 
 ```{r}
@@ -145,39 +146,6 @@ cat("Accuracy:", accuracy, "\n")
 
 # Calculate confusion matrix
 confusion_matrix <- table(Predicted = predictions, Actual = test_balanced_data$cat_change)
-
-# Calculate precision, recall, and F1-score
-precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
-recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
-f1_score <- 2 * precision * recall / (precision + recall)
-
-cat("Precision:", precision, "\n")
-cat("Recall:", recall, "\n")
-cat("F1-score:", f1_score, "\n")
-
-confusion_matrix
-```
-
-```{r}
-library(randomForest)
-library(randomForestExplainer)
-
-rf_model <- randomForest(cat_change ~ ., data = train_balanced_data, method = "class")
-importance <- importance(rf_model)
-importance
-# Plot feature importance
-varImpPlot(rf_model, main = "Balanced Random Forest BA")
-```
-
-```{r}
-predictions <- round(predict(rf_model, test_processed_data, type = "class"))
-
-# Calculate accuracy
-accuracy <- mean(predictions == test_processed_data$cat_change)
-cat("Accuracy:", accuracy, "\n")
-
-# Calculate confusion matrix
-confusion_matrix <- table(Predicted = predictions, Actual = test_processed_data$cat_change)
 
 # Calculate precision, recall, and F1-score
 precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
